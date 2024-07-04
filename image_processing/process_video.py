@@ -1,6 +1,7 @@
 from math import exp
 import cv2
 import numpy as np
+import time 
 
 # Function to create a tracker with compatibility check
 def create_tracker(tracker_type='CSRT'):
@@ -88,6 +89,7 @@ def main(video_path, output_path):
 
 if __name__ == "__main__":
 
+    time_id = time.strftime("%Y%m%d-%H%M%S")
     shape_to_track = 'infinite'
     if shape_to_track == 'circle':
         exp_name = 'ZeroGCamera1_circle_speed4x.mp4'
@@ -98,6 +100,6 @@ if __name__ == "__main__":
     
     base_folder = '/home/matteo/Videos/fp_media_videos/'
     video_path = base_folder + exp_name
-    output_name = shape_to_track + '_trajectory_drawn.mp4'
+    output_name = shape_to_track + '_trajectory_drawn_' + time_id + '.mp4'
     output_path = base_folder + output_name
     main(video_path, output_path)
