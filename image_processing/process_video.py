@@ -1,7 +1,9 @@
-from math import exp
+import argparse
+import os
 import cv2
 import numpy as np
-import time 
+import time
+import glob
 
 # Function to create a tracker with compatibility check
 def create_tracker(tracker_type='CSRT'):
@@ -13,11 +15,11 @@ def create_tracker(tracker_type='CSRT'):
         print(f"{tracker_type} tracker not available. Falling back to MIL tracker.")
         return cv2.TrackerMIL_create()
 
-# Function to read frames from a video or GIF
+# Function to read frames from a video
 def read_frames(video_path):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("Error: Could not open video.")
+        print(f"Error: Could not open video {video_path}.")
         return []
     
     frames = []
@@ -29,15 +31,15 @@ def read_frames(video_path):
     cap.release()
     return frames
 
-# Function to track the object
+# Function to track an object in the video
 def track_object(frames):
     if not frames:
         print("Error: No frames to process.")
         return []
     
     tracker = create_tracker('CSRT')
-    bbox = cv2.selectROI("Frame", frames[0], False)
-    cv2.destroyWindow("Frame")
+    bbox = cv2.selectROI("Select Object", frames[0], False)
+    cv2.destroyWindow("Select Object")
     tracker.init(frames[0], bbox)
     
     trajectory = []
@@ -51,7 +53,7 @@ def track_object(frames):
             trajectory.append(None)
     return trajectory
 
-# Function to draw the trajectory dynamically
+# Function to draw the trajectory on the video
 def draw_trajectory(frames, trajectory, output_path, fps=30):
     if not frames:
         print("Error: No frames to save.")
@@ -72,34 +74,61 @@ def draw_trajectory(frames, trajectory, output_path, fps=30):
         out.write(frame)
     
     out.release()
+    print(f"Processed video saved as: {output_path}")
 
 # Main function
-def main(video_path, output_path):
-    frames = read_frames(video_path)
-    if not frames:
-        print("Error: No frames were read from the video.")
-        return
-    
-    trajectory = track_object(frames)
-    if not trajectory:
-        print("Error: Object tracking failed.")
-        return
-    
-    draw_trajectory(frames, trajectory, output_path)
+def main(video_folder):
+    # Ensure the folder exists
+    if not os.path.exists(video_folder):
+        raise FileNotFoundError(f"Error: The folder '{video_folder}' does not exist.")
+
+    # Get all video files in the folder
+    video_files = glob.glob(os.path.join(video_folder, "*.mp4")) + \
+                  glob.glob(os.path.join(video_folder, "*.avi")) + \
+                  glob.glob(os.path.join(video_folder, "*.mov")) + \
+                  glob.glob(os.path.join(video_folder, "*.mkv"))
+
+    if not video_files:
+        raise FileNotFoundError(f"Error: No video files found in '{video_folder}'.")
+
+    # Iterate through videos one by one
+    for video_path in video_files:
+        video_name = os.path.basename(video_path)
+        print(f"\nFound video: {video_name}")
+        
+        while True:
+            user_choice = input("Do you want to process this video? (y)es / (s)kip / (e)xit: ").strip().lower()
+            if user_choice in ['y', 'yes']:
+                break
+            elif user_choice in ['s', 'skip']:
+                print(f"Skipping {video_name}...\n")
+                continue
+            elif user_choice in ['e', 'exit']:
+                print("Exiting script.")
+                return
+            else:
+                print("Invalid input. Please enter 'y', 's', or 'e'.")
+
+        # Process the video
+        frames = read_frames(video_path)
+        if not frames:
+            print(f"Skipping {video_name} due to read error.\n")
+            continue
+
+        trajectory = track_object(frames)
+        if not trajectory:
+            print(f"Skipping {video_name} due to tracking failure.\n")
+            continue
+
+        # Save with "_tracked" suffix
+        output_name = os.path.splitext(video_name)[0] + "_tracked.mp4"
+        output_path = os.path.join(video_folder, output_name)
+        
+        draw_trajectory(frames, trajectory, output_path)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Trajectory tracking on videos.")
+    parser.add_argument("video_folder", type=str, help="Path to the folder containing videos.")
+    args = parser.parse_args()
 
-    time_id = time.strftime("%Y%m%d-%H%M%S")
-    shape_to_track = 'infinite'
-    if shape_to_track == 'circle':
-        exp_name = 'ZeroGCamera1_circle_speed4x.mp4'
-    elif shape_to_track == 'infinite':
-        exp_name = 'ZeroGCamera_infinite_4x.mp4'
-    else:
-        raise ValueError(f"Unknown shape to track: {shape_to_track}")
-    
-    base_folder = '/home/matteo/Videos/fp_media_videos/'
-    video_path = base_folder + exp_name
-    output_name = shape_to_track + '_trajectory_drawn_' + time_id + '.mp4'
-    output_path = base_folder + output_name
-    main(video_path, output_path)
+    main(args.video_folder)
