@@ -1,0 +1,5 @@
+# Ignore virtual environment folder
+ivp/
+# Ignore all files in the virtual environment folder
+ivp/*
+
