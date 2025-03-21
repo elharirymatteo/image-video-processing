@@ -63,14 +63,11 @@ def draw_trajectory(frames, trajectory, output_path, fps=30):
     out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
     
     for i in range(len(frames)):
-        frame = frames[i].copy()  # Copy the current frame to avoid modifying the original
-        
-        # Draw the trajectory up to the current frame
+        frame = frames[i].copy()
         for j in range(1, i + 1):
             if trajectory[j-1] is None or trajectory[j] is None:
                 continue
             cv2.line(frame, trajectory[j-1], trajectory[j], (0, 255, 0), 2)
-        
         out.write(frame)
     
     out.release()
@@ -81,6 +78,10 @@ def main(video_folder):
     # Ensure the folder exists
     if not os.path.exists(video_folder):
         raise FileNotFoundError(f"Error: The folder '{video_folder}' does not exist.")
+
+    # Prepare tracked video folder
+    tracked_folder = os.path.join(video_folder, "tracked")
+    os.makedirs(tracked_folder, exist_ok=True)
 
     # Get all video files in the folder
     video_files = glob.glob(os.path.join(video_folder, "*.mp4")) + \
@@ -95,36 +96,36 @@ def main(video_folder):
     for video_path in video_files:
         video_name = os.path.basename(video_path)
         print(f"\nFound video: {video_name}")
-        
+
         while True:
             user_choice = input("Do you want to process this video? (y)es / (s)kip / (e)xit: ").strip().lower()
+
             if user_choice in ['y', 'yes']:
-                break
+                frames = read_frames(video_path)
+                if not frames:
+                    print(f"Skipping {video_name} due to read error.\n")
+                    break
+
+                trajectory = track_object(frames)
+                if not trajectory:
+                    print(f"Skipping {video_name} due to tracking failure.\n")
+                    break
+
+                output_name = os.path.splitext(video_name)[0] + "_tracked.mp4"
+                output_path = os.path.join(tracked_folder, output_name)
+                draw_trajectory(frames, trajectory, output_path)
+                break  # Done with this video, move to next
+
             elif user_choice in ['s', 'skip']:
                 print(f"Skipping {video_name}...\n")
-                continue
+                break  # Move to the next video
+
             elif user_choice in ['e', 'exit']:
                 print("Exiting script.")
-                return
+                exit()
+
             else:
                 print("Invalid input. Please enter 'y', 's', or 'e'.")
-
-        # Process the video
-        frames = read_frames(video_path)
-        if not frames:
-            print(f"Skipping {video_name} due to read error.\n")
-            continue
-
-        trajectory = track_object(frames)
-        if not trajectory:
-            print(f"Skipping {video_name} due to tracking failure.\n")
-            continue
-
-        # Save with "_tracked" suffix
-        output_name = os.path.splitext(video_name)[0] + "_tracked.mp4"
-        output_path = os.path.join(video_folder, output_name)
-        
-        draw_trajectory(frames, trajectory, output_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Trajectory tracking on videos.")
