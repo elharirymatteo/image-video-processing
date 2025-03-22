@@ -47,7 +47,7 @@ python3 image_processing/process_video.py /path/to/video/folder
 
 - The script will **list videos in the specified folder**.
 - You will be prompted to **process, skip, or exit** for each video.
-- Processed videos will be saved with `_tracked` appended to their filenames.
+- Processed videos will be saved with `_tracked` appended to their filenames in a `/tracked` folder.
 
 
 ## **Contributions**
